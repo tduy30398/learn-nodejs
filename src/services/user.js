@@ -7,8 +7,9 @@ export const getOne = (userId) =>
                 where: { id: userId },
                 // lấy data về nhưng ko muốn lấy password về thì setting như sau
                 attributes: {
-                    exclude: ['password']
-                }
+                    exclude: ['password', 'role_code']
+                },
+                include: [{ model: db.Role, as: 'roleData', attributes: ['id', 'code', 'value'] }]
             });
 
             resolve({
