@@ -1,5 +1,8 @@
-import db from '../models';
 import { Op } from 'sequelize';
+import { v4 as uuid } from 'uuid';
+const cloudinary = require('cloudinary').v2;
+
+import db from '../models';
 
 // READ (in CRUD)
 // limit là số data ở mỗi lần lấy
@@ -29,7 +32,13 @@ export const getBooks = ({ page, limit, order, name, available, ...query }) =>
             }
             const response = await db.Book.findAndCountAll({
                 where: query,
-                ...queries
+                ...queries,
+                attributes: {
+                    exclude: ['category_code']
+                },
+                include: [
+                    { model: db.Category, as: 'categoryData', attributes: ['id', 'code', 'value'] }
+                ]
             });
 
             resolve({
@@ -39,5 +48,35 @@ export const getBooks = ({ page, limit, order, name, available, ...query }) =>
             });
         } catch (error) {
             reject(error);
+        }
+    });
+
+// CREATE (in CRUD)
+export const createNewBook = (body, fileData) =>
+    new Promise(async (resolve, reject) => {
+        try {
+            const response = await db.Book.findOrCreate({
+                where: {
+                    title: body?.title
+                },
+                defaults: {
+                    ...body,
+                    image: fileData?.path,
+                    id: uuid()
+                }
+            });
+
+            resolve({
+                err: response[1] ? 0 : 1,
+                mes: response[1] ? 'Created' : 'Name already exists'
+            });
+            if (fileData && !response[1]) {
+                cloudinary.uploader.destroy(fileData.filename);
+            }
+        } catch (error) {
+            reject(error);
+            if (fileData) {
+                cloudinary.uploader.destroy(fileData.filename);
+            }
         }
     });
