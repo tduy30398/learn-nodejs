@@ -34,7 +34,7 @@ export const getBooks = ({ page, limit, order, name, available, ...query }) =>
                 where: query,
                 ...queries,
                 attributes: {
-                    exclude: ['category_code']
+                    exclude: ['category_code', 'description']
                 },
                 include: [
                     { model: db.Category, as: 'categoryData', attributes: ['id', 'code', 'value'] }
@@ -78,5 +78,47 @@ export const createNewBook = (body, fileData) =>
             if (fileData) {
                 cloudinary.uploader.destroy(fileData.filename);
             }
+        }
+    });
+
+// UPDATE (in CRUD)
+export const updateBook = ({ bookId, ...body }, fileData) =>
+    new Promise(async (resolve, reject) => {
+        try {
+            // Nếu cập nhật lại image thì cập nhật lại url của ảnh
+            if (fileData) {
+                body.image = fileData?.path;
+            }
+            const response = await db.Book.update(body, {
+                where: { id: bookId }
+            });
+            resolve({
+                err: response[0] > 0 ? 0 : 1,
+                mes: response[0] > 0 ? `Update ${response[0]} books successfully` : 'Update fail'
+            });
+            if (fileData && !response[0] === 0) {
+                cloudinary.uploader.destroy(fileData.filename);
+            }
+        } catch (error) {
+            reject(error);
+            if (fileData) {
+                cloudinary.uploader.destroy(fileData.filename);
+            }
+        }
+    });
+
+// DELETE (in CRUD)
+export const deleteBook = ({ bookIdList }) =>
+    new Promise(async (resolve, reject) => {
+        try {
+            const response = await db.Book.destroy({
+                where: { id: bookIdList }
+            });
+            resolve({
+                err: response > 0 ? 0 : 1,
+                mes: response > 0 ? `Deleted ${response} books successfully` : 'Delete fail'
+            });
+        } catch (error) {
+            reject(error);
         }
     });
