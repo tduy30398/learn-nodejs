@@ -10,7 +10,8 @@ import {
     category_code,
     image,
     bookId,
-    bookIdList
+    bookIdList,
+    filename
 } from '../helpers/joi_schema';
 
 export const getBooks = async (req, res) => {
@@ -60,11 +61,11 @@ export const updateBook = async (req, res) => {
 
 export const deleteBook = async (req, res) => {
     try {
-        const { error } = joi.object({ bookIdList }).validate(req.query);
+        const { error } = joi.object({ bookIdList, filename }).validate(req.query);
         if (error) {
             return badRequest(error.details[0].message, res);
         }
-        const response = await services.deleteBook(req.query);
+        const response = await services.deleteBook(req.query.bookIdList, req.query.filename);
         return res.status(200).json(response);
     } catch (error) {
         return internalServerError(res);
