@@ -11,7 +11,8 @@ import {
     image,
     bookId,
     bookIdList,
-    filename
+    filename,
+    description
 } from '../helpers/joi_schema';
 
 export const getBooks = async (req, res) => {
@@ -27,7 +28,7 @@ export const createNewBook = async (req, res) => {
     try {
         const fileData = req.file;
         const { error } = joi
-            .object({ title, price, available, category_code, image })
+            .object({ title, price, available, category_code, image, description })
             .validate({ ...req.body, image: fileData?.path });
         if (error) {
             if (fileData) {

@@ -20,7 +20,7 @@ export const register = ({ email, password }) =>
             });
 
             // mã hóa data bằng jsonwebtoken
-            const token = response[1]
+            const accessToken = response[1]
                 ? jwt.sign(
                       {
                           id: response[0].id,
@@ -28,15 +28,35 @@ export const register = ({ email, password }) =>
                           role_code: response[0].role_code
                       },
                       process.env.JWT_SECRET,
-                      { expiresIn: '5d' }
+                      { expiresIn: '15s' }
+                  )
+                : null;
+            const refreshToken = response[1]
+                ? jwt.sign(
+                      {
+                          id: response[0].id
+                      },
+                      process.env.JWT_SECRET_REFRESH_TOKEN,
+                      { expiresIn: '15d' }
                   )
                 : null;
 
             resolve({
                 err: response[1] ? 0 : 1,
                 mes: response[1] ? 'Resgister successfully' : 'Your email has been registered',
-                access_token: token ? `Bearer ${token}` : null
+                access_token: accessToken ? `Bearer ${accessToken}` : null,
+                refresh_token: refreshToken
             });
+            if (refreshToken) {
+                await db.User.update(
+                    {
+                        refresh_token: refreshToken
+                    },
+                    {
+                        where: { id: response[0].id }
+                    }
+                );
+            }
         } catch (error) {
             reject(error);
         }
@@ -47,7 +67,7 @@ export const login = ({ email, password }) =>
         try {
             const response = await db.User.findOne({
                 where: { email },
-                // khi set raw: true, respone trả về object với
+                // khi set raw: true, response trả về object với
                 // những data cần thiết, còn ko set hoặc raw: false
                 // thì data là 1 instance với rấ nhiều data ko cần
                 // thiết
@@ -59,7 +79,7 @@ export const login = ({ email, password }) =>
             // với password của user tương ứng đã được mã hóa từ response trả về
             const isCheckedPassword = response && bcryptjs.compareSync(password, response.password);
 
-            const token = isCheckedPassword
+            const accessToken = isCheckedPassword
                 ? jwt.sign(
                       {
                           id: response.id,
@@ -67,23 +87,80 @@ export const login = ({ email, password }) =>
                           role_code: response.role_code
                       },
                       process.env.JWT_SECRET,
+                      { expiresIn: '15s' }
+                  )
+                : null;
+            const refreshToken = isCheckedPassword
+                ? jwt.sign(
+                      {
+                          id: response.id
+                      },
+                      process.env.JWT_SECRET_REFRESH_TOKEN,
                       { expiresIn: '5d' }
                   )
                 : null;
 
             // - Đăng nhập thành công khi token tồn tại
-            // - Trường hợp token ko tồn tại => isCheckedPassword = false, check respone:
-            //  + Nếu respone = true (mà isCheckedPassword = false) => check password bị sai => line 60
-            //  + Nếu respone = false => Email chưa tồn tại
+            // - Trường hợp token ko tồn tại => isCheckedPassword = false, check response:
+            //  + Nếu response = true (mà isCheckedPassword = false) => check password bị sai => line 60
+            //  + Nếu response = false => Email chưa tồn tại
             resolve({
-                err: token ? 0 : 1,
-                mes: token
+                err: accessToken ? 0 : 1,
+                mes: accessToken
                     ? 'Login successfully'
                     : response
                     ? 'Password incorrect'
                     : "Email isn't resgistered",
-                access_token: token ? `Bearer ${token}` : null
+                access_token: accessToken ? `Bearer ${accessToken}` : null,
+                refresh_token: refreshToken
             });
+            if (refreshToken) {
+                await db.User.update(
+                    {
+                        refresh_token: refreshToken
+                    },
+                    {
+                        where: { id: response.id }
+                    }
+                );
+            }
+        } catch (error) {
+            reject(error);
+        }
+    });
+
+export const refreshToken = (refresh_token) =>
+    new Promise(async (resolve, reject) => {
+        try {
+            const response = await db.User.findOne({
+                where: { refresh_token }
+            });
+            if (response) {
+                jwt.verify(refresh_token, process.env.JWT_SECRET_REFRESH_TOKEN, (err) => {
+                    if (err) {
+                        resolve({
+                            err: 1,
+                            mes: 'Refresh token expired, please login again'
+                        });
+                    } else {
+                        const accessToken = jwt.sign(
+                            {
+                                id: response.id,
+                                email: response.email,
+                                role_code: response.role_code
+                            },
+                            process.env.JWT_SECRET,
+                            { expiresIn: '15s' }
+                        );
+                        resolve({
+                            err: accessToken ? 0 : 1,
+                            mes: accessToken ? 'Success' : 'Generate fail',
+                            access_token: accessToken ? `Bearer ${accessToken}` : null,
+                            refresh_token: refresh_token
+                        });
+                    }
+                });
+            }
         } catch (error) {
             reject(error);
         }

@@ -10,3 +10,5 @@ export const image = joi.string().required();
 export const bookId = joi.string().required();
 export const bookIdList = joi.array().required();
 export const filename = joi.array().required();
+export const description = joi.string();
+export const refreshToken = joi.string().required();

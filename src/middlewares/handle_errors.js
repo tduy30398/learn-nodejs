@@ -24,10 +24,10 @@ export const notFound = (req, res) => {
     });
 };
 
-export const notAuth = (err, res) => {
+export const notAuth = (err, res, isExpire) => {
     const error = createError.Unauthorized(err);
     return res.status(error.status).json({
-        err: 1,
+        err: isExpire ? 2 : 1,
         mes: error.message
     });
 };
